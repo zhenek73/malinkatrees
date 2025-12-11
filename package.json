@@ -3,15 +3,12 @@
     "version": "1.0.0",
     "private": true,
     "scripts": {
+      "prepare": "cd frontend && npm ci && cd ../backend && npm ci",
       "build": "cd frontend && npm run build",
       "start": "cd backend && npm start"
     },
-    "devDependencies": {
-      "typescript": "^5.6.0"
-    },
-    "description": "Telegram Mini App для новогодней ёлки с токенами MALINKA",
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/zhenek73/malinkatrees"
-    }
+    "workspaces": [
+      "frontend",
+      "backend"
+    ]
   }
