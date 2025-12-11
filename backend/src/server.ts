@@ -9,6 +9,9 @@ import { startParser } from './eosParser'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// ESM-compatible path resolution for static files (works on Linux/Windows)
+const frontendDistPath = path.resolve(__dirname, '../../frontend/dist')
+
 const app = express()
 
 app.use(cors())
@@ -22,7 +25,7 @@ app.use((req, res, next) => {
 })
 
 // Статические файлы фронтенда
-app.use(express.static(path.join(__dirname, '../../frontend/dist')))
+app.use(express.static(frontendDistPath))
 
 // Health check
 app.get('/health', (req, res) => {
@@ -60,13 +63,14 @@ app.get('/api/donors', async (req, res) => {
 
 // SPA fallback - все остальные маршруты возвращают index.html
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'))
+  res.sendFile(path.join(frontendDistPath, 'index.html'))
 })
 
 export function startServer(): void {
   const port = parseInt(process.env.PORT || '4000', 10)
 
   app.listen(port, '0.0.0.0', () => {
+    console.log('✅ Server listening on port', port)
     console.log(`🚀 Server running on http://localhost:${port}`)
     console.log(`   Environment: ${config.nodeEnv}`)
     console.log(`   Frontend: http://localhost:${port}`)
