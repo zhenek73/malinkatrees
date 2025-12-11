@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "node20",
+    "moduleResolution": "node20",
     "lib": ["ES2020"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -14,4 +15,3 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
-

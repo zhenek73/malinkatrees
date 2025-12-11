@@ -1,7 +1,7 @@
 import axios from 'axios'
-import { config } from './config'
-import { EOSTransfer, Decoration, DecorationType } from './types'
-import { insertDecoration, broadcastDecoration } from './database'
+import { config } from './config.js'
+import { EOSTransfer, Decoration, DecorationType } from './types.js'
+import { insertDecoration, broadcastDecoration } from './database.js'
 
 let lastProcessedBlock = 0
 let isPolling = false

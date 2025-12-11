@@ -2,9 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { config } from './config'
-import { getDecorations, getTopDonors } from './database'
-import { startParser } from './eosParser'
+import { config } from './config.js'
+import { getDecorations, getTopDonors } from './database.js'
+import { startParser } from './eosParser.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

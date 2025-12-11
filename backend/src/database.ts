@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { config } from './config'
-import { Decoration, DecorationType } from './types'
+import { config } from './config.js'
+import { Decoration, DecorationType } from './types.js'
 
 const supabase = createClient(config.supabase.url, config.supabase.anonKey)
 

@@ -1,5 +1,5 @@
-import { config } from './config'
-import { startServer } from './server'
+import { config } from './config.js'
+import { startServer } from './server.js'
 
 console.log('🎄 Ёлка Малинка Backend Starting...')
 console.log('')
