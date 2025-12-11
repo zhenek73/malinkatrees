@@ -64,9 +64,9 @@ app.get('*', (req, res) => {
 })
 
 export function startServer(): void {
-    const port = process.env.PORT ? Number(process.env.PORT) : config.port;
+  const port = parseInt(process.env.PORT || '4000', 10)
 
-  app.listen(port, () => {
+  app.listen(port, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://localhost:${port}`)
     console.log(`   Environment: ${config.nodeEnv}`)
     console.log(`   Frontend: http://localhost:${port}`)
