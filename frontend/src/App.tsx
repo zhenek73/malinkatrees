@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo, useRef, Suspense } from 'react'
 import { Sparkles, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { fetchDecorations } from './api'
-import { Decoration } from './types'
+import { fetchDecorations, fetchTopDonors } from './api'
+import { Decoration, TopDonor } from './types'
 
 const Snowfall = React.lazy(() => import('./components/Snowfall'))
 
@@ -75,6 +75,8 @@ export default function App() {
   const [giftUrl, setGiftUrl] = useState('')
   const [showDonatePanel, setShowDonatePanel] = useState(false)
   const [showLog, setShowLog] = useState(false)
+  const [logTab, setLogTab] = useState<'actions' | 'donors'>('actions')
+  const [topDonors, setTopDonors] = useState<TopDonor[]>([])
   const [timeLeft, setTimeLeft] = useState('')
   const [bidAmount, setBidAmount] = useState('')
   const [bidError, setBidError] = useState('')
@@ -442,13 +444,52 @@ useEffect(() => {
     setWaitingForPayment(false)
   }
 
-  // Лог последних действий (последние 20 украшений)
-  const recentLog = useMemo(() => {
+  // Все действия (все украшения)
+  const allActions = useMemo(() => {
     return decorations
       .slice()
       .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
-      .slice(0, 20)
   }, [decorations])
+
+  // Группировка украшений по дарителям для детальной статистики
+  const donorStats = useMemo(() => {
+    const stats = new Map<string, {
+      lights: number
+      balls: number
+      envelopes: number
+      stars: number
+      total: number
+    }>()
+
+    decorations.forEach(dec => {
+      const account = dec.from_account
+      if (!stats.has(account)) {
+        stats.set(account, { lights: 0, balls: 0, envelopes: 0, stars: 0, total: 0 })
+      }
+      const stat = stats.get(account)!
+      const type = dec.type?.toLowerCase()
+      
+      if (type === 'light') {
+        stat.lights += Math.floor(parseFloat(dec.amount || '0'))
+      } else if (type === 'ball') {
+        stat.balls += 1
+      } else if (type === 'envelope' || type === 'candle') {
+        stat.envelopes += 1
+      } else if (type === 'star') {
+        stat.stars += 1
+      }
+      stat.total += parseFloat(dec.amount?.match(/^(\d+\.?\d*)/)?.[1] || '0')
+    })
+
+    return stats
+  }, [decorations])
+
+  // Загрузка топ дарителей
+  useEffect(() => {
+    if (showLog && logTab === 'donors') {
+      fetchTopDonors(50).then(setTopDonors)
+    }
+  }, [showLog, logTab])
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black overflow-hidden">
@@ -707,7 +748,7 @@ useEffect(() => {
             
             <button 
               onClick={() => handleOpenModal('envelope')}
-              className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-bold py-3 px-6 rounded-full text-lg shadow-xl hover:scale-105 transition flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-white font-bold py-3 px-6 rounded-full text-lg shadow-xl hover:scale-105 transition flex items-center justify-center gap-2"
             >
               <img src="/envelope.png" className="w-8 h-8" alt="Открытка" />
               Открытка (100 MLNK)
@@ -719,7 +760,7 @@ useEffect(() => {
               className={`w-full text-white font-bold py-3 px-6 rounded-full text-lg shadow-xl transition ${
                 auctionEnded 
                   ? 'bg-gray-600 cursor-not-allowed opacity-50' 
-                  : 'bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 hover:scale-105 animate-pulse-slow'
+                  : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:scale-105 animate-pulse-slow'
               }`}
             >
               ⭐ Зажечь звезду (∞ MLNK)
@@ -730,7 +771,7 @@ useEffect(() => {
               onClick={() => setShowLog(true)}
               className="w-full bg-gray-700 text-white font-bold py-2 px-4 rounded-full text-sm hover:bg-gray-600 transition"
             >
-              📜 Лог действий ({recentLog.length})
+              📜 Лог действий ({allActions.length})
             </button>
 
             {/* Кнопка закрытия панели */}
@@ -936,7 +977,9 @@ useEffect(() => {
       {showLog && (
         <div className="fixed inset-0 bg-black/95 flex flex-col z-50" onClick={() => setShowLog(false)}>
           <div className="flex justify-between items-center p-4 border-b border-yellow-500/30" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-bold text-white">📜 Лог действий</h2>
+            <h2 className="text-2xl font-bold text-white">
+              {logTab === 'actions' ? '📜 Лог действий' : '🏆 Топ дарителей'}
+            </h2>
             <button
               onClick={() => setShowLog(false)}
               className="text-white/70 hover:text-white transition"
@@ -944,37 +987,105 @@ useEffect(() => {
               <X className="w-6 h-6" />
             </button>
           </div>
+          
+          {/* Вкладки */}
+          <div className="flex border-b border-yellow-500/30" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setLogTab('actions')}
+              className={`flex-1 py-3 text-center font-bold transition ${
+                logTab === 'actions'
+                  ? 'bg-yellow-500/20 text-yellow-400 border-b-2 border-yellow-400'
+                  : 'text-white/70 hover:text-white'
+              }`}
+            >
+              Лог действий
+            </button>
+            <button
+              onClick={() => setLogTab('donors')}
+              className={`flex-1 py-3 text-center font-bold transition ${
+                logTab === 'donors'
+                  ? 'bg-yellow-500/20 text-yellow-400 border-b-2 border-yellow-400'
+                  : 'text-white/70 hover:text-white'
+              }`}
+            >
+              Топ дарителей
+            </button>
+          </div>
+
           <div className="flex-1 overflow-y-auto p-4 space-y-2" onClick={(e) => e.stopPropagation()}>
-            {recentLog.length === 0 ? (
-              <p className="text-gray-400 text-center">Пока нет действий</p>
-            ) : (
-              recentLog.map((dec, i) => (
-                <div
-                  key={`log-${dec.id || i}`}
-                  className="bg-black/40 rounded-lg p-3 text-sm"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="text-yellow-400 font-bold">
-                        {dec.type === 'light' && `💡 Зажёг ${Math.floor(parseFloat(dec.amount))} огоньков!`}
-                        {dec.type === 'ball' && '🎈 Шарик'}
-                        {(dec.type === 'candle' || dec.type === 'envelope') && '📮 Открытка'}
-                        {dec.type === 'gift' && '🎁 Подарок'}
-                        {dec.type === 'star' && parseFloat(dec.amount) === currentBid && `⭐ ${dec.username || dec.from_account} получает право зажечь звезду на Новый год! 🎉`}
+            {logTab === 'actions' ? (
+              allActions.length === 0 ? (
+                <p className="text-gray-400 text-center">Пока нет действий</p>
+              ) : (
+                allActions.map((dec, i) => (
+                  <div
+                    key={`log-${dec.id || i}`}
+                    className="bg-black/40 rounded-lg p-3 text-sm"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="text-yellow-400 font-bold">
+                          {dec.type === 'light' && `💡 Зажёг ${Math.floor(parseFloat(dec.amount))} огоньков!`}
+                          {dec.type === 'ball' && '🎈 Шарик'}
+                          {(dec.type === 'candle' || dec.type === 'envelope') && '📮 Открытка'}
+                          {dec.type === 'gift' && '🎁 Подарок'}
+                          {dec.type === 'star' && parseFloat(dec.amount) === currentBid && `⭐ ${dec.username || dec.from_account} получает право зажечь звезду на Новый год! 🎉`}
+                        </div>
+                        <div className="text-white mt-1">
+                          От: {dec.from_account}
+                        </div>
+                        <div className="text-pink-300 text-xs mt-1">
+                          Сумма: {dec.amount}
+                        </div>
                       </div>
-                      <div className="text-white mt-1">
-                        От: {dec.from_account}
+                      <div className="text-gray-400 text-xs">
+                        {dec.created_at ? new Date(dec.created_at).toLocaleString('ru-RU') : ''}
                       </div>
-                      <div className="text-pink-300 text-xs mt-1">
-                        Сумма: {dec.amount}
-                      </div>
-                    </div>
-                    <div className="text-gray-400 text-xs">
-                      {dec.created_at ? new Date(dec.created_at).toLocaleString('ru-RU') : ''}
                     </div>
                   </div>
-                </div>
-              ))
+                ))
+              )
+            ) : (
+              topDonors.length === 0 ? (
+                <p className="text-gray-400 text-center">Загрузка...</p>
+              ) : (
+                topDonors.map((donor, i) => {
+                  const stats = donorStats.get(donor.from_account)
+                  const isLeader = starBids.length > 0 && starBids[0].from_account === donor.from_account
+                  
+                  return (
+                    <div
+                      key={`donor-${donor.from_account}`}
+                      className="bg-black/40 rounded-lg p-4 text-sm"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="text-yellow-400 font-bold text-lg">
+                            #{i + 1} {donor.from_account}
+                          </div>
+                          <div className="text-pink-300 text-xs mt-2 space-y-1">
+                            {stats && stats.lights > 0 && (
+                              <div>Зажёг огоньков: {stats.lights}</div>
+                            )}
+                            {stats && stats.balls > 0 && (
+                              <div>Повесил шариков: {stats.balls}</div>
+                            )}
+                            {stats && stats.envelopes > 0 && (
+                              <div>Написал поздравлений: {stats.envelopes}</div>
+                            )}
+                            {stats && stats.stars > 0 && (
+                              <div>{isLeader ? '🏆 ' : ''}Ставок на аукционе: {stats.stars}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-white font-bold text-lg">
+                          {donor.total_amount.toFixed(6)} MLNK
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )
             )}
           </div>
         </div>
