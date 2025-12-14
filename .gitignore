@@ -35,3 +35,7 @@ yarn-error.log*
 *.tmp
 .cache/
 
+# Project documentation (local notes)
+PROJECT_NOTES.md
+TECHNICAL_AUDIT.md
+
