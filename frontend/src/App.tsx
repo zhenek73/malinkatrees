@@ -151,7 +151,11 @@ export default function App() {
         return
       }
       
-      channel = supabase.channel('public:decorations')
+      channel = supabase.channel('public:decorations', {
+        config: {
+          private: true  // ключевой фикс: делаем канал private для приёма broadcast от service_role
+        }
+      })
         .on('broadcast', { event: 'new_decoration' }, (payload) => {
           console.log('📡 [Realtime] Received new decoration:', payload.payload)
           const newDecoration = payload.payload as Decoration
@@ -177,8 +181,11 @@ export default function App() {
           })
         })
         .subscribe((status) => {
+          console.log('📡 [Realtime] Subscription status:', status)
           if (status === 'SUBSCRIBED') {
-            console.log('✅ [Realtime] Subscribed to decorations channel')
+            console.log('✅ [Realtime] Subscribed to private channel')
+          } else if (status === 'CLOSED') {
+            console.log('⚠️ [Realtime] Channel closed')
           } else if (status === 'CHANNEL_ERROR') {
             console.error('❌ [Realtime] Channel error')
           }
@@ -487,7 +494,12 @@ useEffect(() => {
   const handlePaymentDone = () => {
     setWaitingForPayment(true)
     setModalType(null)
-    loadData()
+    // Ждём 8–10 секунд (время подтверждения в EOS + парсер) и подтягиваем свежие данные
+    setTimeout(async () => {
+      await loadData()  // принудительно обновляем decorations
+      setWaitingForPayment(false)
+      console.log('✅ [App] Forced reload after payment')
+    }, 10000)  // 10 секунд — достаточно для EOS блока + парсера
   }
 
   const handleCloseModal = () => {
