@@ -33,6 +33,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+// API: Получить конфигурацию Supabase для frontend Realtime
+app.get('/api/config', (req, res) => {
+  res.json({
+    supabaseUrl: config.supabase.url,
+    supabaseAnonKey: config.supabase.anonKey
+  })
+})
+
 // API: Получить все украшения
 app.get('/api/decorations', async (req, res) => {
   try {

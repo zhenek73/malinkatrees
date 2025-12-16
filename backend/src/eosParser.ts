@@ -166,16 +166,16 @@ async function processTransfer(transfer: EOSTransfer): Promise<void> {
 
   // Для звезды создаём одну запись с полной суммой
   if (parsed.type === 'star') {
+    const amount = parseFloat(transfer.quantity.split(' ')[0])
     const decoration: Decoration = {
       type: 'star',
       from_account: transfer.from,
-      username: parsed.username || transfer.from,
-      amount: transfer.quantity,
-      tx_id: transfer.trx_id,
-      created_at: transfer.block_time
+      username: parsed.username || transfer.from || null,
+      text: null,
+      amount: amount
     }
 
-    const inserted = await insertDecoration(decoration)
+    const inserted = await insertDecoration(decoration, transfer.trx_id)
     
     if (inserted) {
       await broadcastDecoration(inserted)
@@ -186,20 +186,18 @@ async function processTransfer(transfer: EOSTransfer): Promise<void> {
 
   // Для огоньков создаём несколько записей (по количеству)
   const count = parsed.type === 'light' ? (parsed.count || 1) : 1
+  const amount = parseFloat(transfer.quantity.split(' ')[0])
   
   for (let i = 0; i < count; i++) {
     const decoration: Decoration = {
       type: parsed.type.toLowerCase() as DecorationType,
       from_account: transfer.from,
-      username: parsed.username,
-      text: parsed.text,
-      image_url: parsed.imageUrl,
-      amount: transfer.quantity,
-      tx_id: transfer.trx_id,
-      created_at: transfer.block_time
+      username: parsed.username || null,
+      text: parsed.type === 'candle' ? (parsed.text || null) : null,
+      amount: amount
     }
 
-    const inserted = await insertDecoration(decoration)
+    const inserted = await insertDecoration(decoration, transfer.trx_id)
     
     if (inserted) {
       await broadcastDecoration(inserted)

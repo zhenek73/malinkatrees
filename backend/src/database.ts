@@ -4,30 +4,37 @@ import { Decoration, DecorationType } from './types.js'
 
 const supabase = createClient(config.supabase.url, config.supabase.anonKey)
 
-export async function insertDecoration(decoration: Decoration): Promise<Decoration | null> {
+export async function insertDecoration(decoration: Decoration, txId?: string): Promise<Decoration | null> {
   try {
-    // Проверка на дубликат по tx_id
-    const { data: existing } = await supabase
-      .from('decorations')
-      .select('id')
-      .eq('tx_id', decoration.tx_id)
-      .single()
+    // Проверка на дубликат по tx_id (если передан)
+    if (txId) {
+      const { data: existing } = await supabase
+        .from('decorations')
+        .select('id')
+        .eq('tx_id', txId)
+        .single()
 
-    if (existing) {
-      console.log(`⚠️  Transaction ${decoration.tx_id} already processed, skipping`)
-      return null
+      if (existing) {
+        console.log(`⚠️  Transaction ${txId.substring(0, 8)}... already processed, skipping`)
+        return null
+      }
     }
 
     // Принудительно сохраняем type в нижнем регистре
-    const decorationToInsert = {
+    const decorationToInsert: any = {
       ...decoration,
       type: decoration.type.toLowerCase()
+    }
+    
+    // Добавляем tx_id только для дедупликации в БД, но не возвращаем его
+    if (txId) {
+      decorationToInsert.tx_id = txId
     }
 
     const { data, error } = await supabase
       .from('decorations')
       .insert([decorationToInsert])
-      .select()
+      .select('type,from_account,username,text,amount')
       .single()
 
     if (error) {
@@ -51,9 +58,9 @@ export async function getDecorations(limit: number = 1000): Promise<Decoration[]
     console.log(`📊 [DB] Fetching decorations (limit: ${limit}, since: ${thirtyDaysAgo.toISOString()})`)
     const { data, error } = await supabase
       .from('decorations')
-      .select('*')
+      .select('type,from_account,username,text,amount')
       .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(limit)
 
     if (error) {
@@ -93,7 +100,7 @@ export async function getTopDonors(limit: number = 10): Promise<Array<{ from_acc
     const { data, error } = await supabase
       .from('decorations')
       .select('from_account, amount')
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(10000) // Получаем больше данных для агрегации
 
     if (error) {
@@ -107,10 +114,8 @@ export async function getTopDonors(limit: number = 10): Promise<Array<{ from_acc
     const donorsMap = new Map<string, { total: number; count: number }>()
     
     data?.forEach((item: any) => {
-      // Парсим amount из формата "1.0000 MALINKA" или "1.0000"
-      const amountStr = item.amount || '0'
-      const amountMatch = amountStr.toString().match(/^(\d+\.?\d*)/)
-      const amount = amountMatch ? parseFloat(amountMatch[1]) : 0
+      // amount теперь число, не строка
+      const amount = typeof item.amount === 'number' ? item.amount : parseFloat(item.amount || '0')
       
       const existing = donorsMap.get(item.from_account) || { total: 0, count: 0 }
       donorsMap.set(item.from_account, {

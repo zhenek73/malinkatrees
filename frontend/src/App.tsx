@@ -3,6 +3,7 @@ import { Sparkles, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { fetchDecorations, fetchTopDonors } from './api'
 import { Decoration, TopDonor } from './types'
+import { getSupabaseClient } from './supabase'
 
 const Snowfall = React.lazy(() => import('./components/Snowfall'))
 
@@ -122,34 +123,80 @@ export default function App() {
           if (prev <= 1) {
             clearInterval(countdownInterval)
             setWaitingForPayment(false)
-            loadData() // Обновляем данные после закрытия
+            // Данные обновятся автоматически через Realtime
             return 0
           }
           return prev - 1
         })
       }, 1000)
 
-      const dataInterval = setInterval(() => {
-        loadData()
-      }, 5000)
-
       return () => {
         clearInterval(countdownInterval)
-        clearInterval(dataInterval)
       }
     }
   }, [waitingForPayment])
 
-  // Загрузка данных при монтировании и realtime подписка
+  // Загрузка данных при монтировании и Realtime подписка
   useEffect(() => {
-   /*для тестирования надо закоментить лоад и поставить интервал 300000*/
-     loadData()
+    // Начальная загрузка данных
+    loadData()
     
-    // Подписка на realtime обновления через API (polling каждые 3 секунды)
-    const interval = setInterval(loadData, 3000)
+    // Подписка на Supabase Realtime для мгновенных обновлений
+    let channel: any = null
     
-   return () => clearInterval(interval)
-   
+    const setupRealtime = async () => {
+      const supabase = await getSupabaseClient()
+      if (!supabase) {
+        console.warn('⚠️ [App] Supabase client not available, Realtime disabled')
+        return
+      }
+      
+      channel = supabase.channel('public:decorations')
+        .on('broadcast', { event: 'new_decoration' }, (payload) => {
+          console.log('📡 [Realtime] Received new decoration:', payload.payload)
+          const newDecoration = payload.payload as Decoration
+          
+          // Добавляем timestamp для вау-эффекта
+          const newDec = { ...newDecoration, createdAt: Date.now() }
+          
+          // Проверка на дубликаты (по комбинации полей)
+          setDecorations(prev => {
+            const isDuplicate = prev.some(d => 
+              d.type === newDec.type &&
+              d.from_account === newDec.from_account &&
+              d.amount === newDec.amount &&
+              (d.text || '') === (newDec.text || '')
+            )
+            
+            if (isDuplicate) {
+              console.log('⚠️ [Realtime] Duplicate decoration ignored')
+              return prev
+            }
+            
+            return [newDec, ...prev]
+          })
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ [Realtime] Subscribed to decorations channel')
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('❌ [Realtime] Channel error')
+          }
+        })
+    }
+    
+    setupRealtime()
+    
+    return () => {
+      if (channel) {
+        getSupabaseClient().then(client => {
+          if (client) {
+            client.removeChannel(channel!)
+            console.log('🔌 [Realtime] Unsubscribed from decorations channel')
+          }
+        })
+      }
+    }
   }, [])
 
   async function loadData() {
@@ -169,7 +216,7 @@ export default function App() {
   const stats = useMemo(() => {
     const lightsAmount = decorations
       .filter(d => d.type?.toLowerCase() === 'light')
-      .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0)
+      .reduce((sum, d) => sum + (typeof d.amount === 'number' ? d.amount : parseFloat(d.amount || '0')), 0)
     const balls = decorations.filter(d => d.type?.toLowerCase() === 'ball').length
     const envelopes = decorations.filter(d => d.type?.toLowerCase() === 'candle' || d.type?.toLowerCase() === 'envelope').length
     const gifts = decorations.filter(d => d.type?.toLowerCase() === 'gift').length
@@ -181,13 +228,17 @@ export default function App() {
   const starBids = useMemo(() => {
     const bids = decorations
       .filter(d => d.type?.toLowerCase() === 'star')
-      .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
+      .sort((a, b) => {
+        const amtA = typeof a.amount === 'number' ? a.amount : parseFloat(a.amount || '0')
+        const amtB = typeof b.amount === 'number' ? b.amount : parseFloat(b.amount || '0')
+        return amtB - amtA
+      })
     
     // Убираем дубли по сумме, оставляем только максимальную
     const uniqueBids = []
     const seenAmounts = new Set()
     for (const bid of bids) {
-      const amt = parseFloat(bid.amount)
+      const amt = typeof bid.amount === 'number' ? bid.amount : parseFloat(bid.amount || '0')
       if (!seenAmounts.has(amt)) {
         seenAmounts.add(amt)
         uniqueBids.push(bid)
@@ -196,7 +247,7 @@ export default function App() {
     return uniqueBids
   }, [decorations])
 
-  const currentBid = starBids.length > 0 ? parseFloat(starBids[0].amount) : 1000  // минимум 1001, но считаем от 1000
+  const currentBid = starBids.length > 0 ? (typeof starBids[0].amount === 'number' ? starBids[0].amount : parseFloat(starBids[0].amount || '0')) : 1000  // минимум 1001, но считаем от 1000
   const minBid = currentBid + 1
 
   // Обработчик изменения ставки
@@ -360,9 +411,9 @@ useEffect(() => {
   const decorationPositions = useMemo(() => {
     const positions: Map<number, Position> = new Map()
     decorations.forEach((dec, index) => {
-      if (dec.type?.toLowerCase() !== 'light' && !positions.has(dec.id || index)) {
+      if (dec.type?.toLowerCase() !== 'light' && !positions.has(index)) {
         // Случайные позиции на ветках
-        positions.set(dec.id || index, {
+        positions.set(index, {
           x: 80 + (index % 5) * 40 + Math.random() * 20,
           y: 150 + Math.floor(index / 5) * 60 + Math.random() * 30
         })
@@ -446,9 +497,7 @@ useEffect(() => {
 
   // Все действия (все украшения)
   const allActions = useMemo(() => {
-    return decorations
-      .slice()
-      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+    return decorations.slice()
   }, [decorations])
 
   // Группировка украшений по дарителям для детальной статистики
@@ -470,7 +519,7 @@ useEffect(() => {
       const type = dec.type?.toLowerCase()
       
       if (type === 'light') {
-        stat.lights += Math.floor(parseFloat(dec.amount || '0'))
+        stat.lights += Math.floor(typeof dec.amount === 'number' ? dec.amount : parseFloat(dec.amount || '0'))
       } else if (type === 'ball') {
         stat.balls += 1
       } else if (type === 'envelope' || type === 'candle') {
@@ -478,7 +527,8 @@ useEffect(() => {
       } else if (type === 'star') {
         stat.stars += 1
       }
-      stat.total += parseFloat(dec.amount?.match(/^(\d+\.?\d*)/)?.[1] || '0')
+      const amountValue = typeof dec.amount === 'number' ? dec.amount : (typeof dec.amount === 'string' ? parseFloat(dec.amount) : 0)
+      stat.total += amountValue
     })
 
     return stats
@@ -516,11 +566,21 @@ useEffect(() => {
 
       {/* Огоньки — точное позиционирование через imageBounds */}
       <div className="absolute inset-0 pointer-events-none z-15">
-        {stats.lights > 0 && imageBounds && lightPositions.length > 0 && (
-          Array.from({ length: stats.lights }, (_, i) => {
+        {stats.lights > 0 && imageBounds && lightPositions.length > 0 && (() => {
+          // Подсчитываем количество свежих огоньков
+          const freshLights = decorations.filter(d => 
+            d.type?.toLowerCase() === 'light' && 
+            d.createdAt && 
+            (Date.now() - d.createdAt) < 60000
+          ).length
+          
+          return Array.from({ length: stats.lights }, (_, i) => {
             const pos = lightPositions[i % lightPositions.length]
             const color = lightColors[i % lightColors.length] || LIGHT_COLORS[0]
             const delay = lightDelays[i % lightDelays.length] || 0
+            
+            // Последние N огоньков считаются свежими (где N = количество свежих decorations)
+            const isFresh = i >= stats.lights - freshLights && freshLights > 0
 
             const relX = pos.x / 1024   // оригинал light-positions.json — 512×1024
             const relY = pos.y / 2048
@@ -530,32 +590,32 @@ useEffect(() => {
 
             return (
               <div
-  key={`light-${i}`}
-  className="absolute animate-pulse"
-  style={{
-    left: `${screenX}px`,
-    top: `${screenY}px`,
-    width: imageBounds ? `${imageBounds.width * 0.014}px` : '14px',
-    height: imageBounds ? `${imageBounds.width * 0.014}px` : '14px',
-    backgroundColor: color,
-    borderRadius: '50%',
-    transform: 'translate(-50%, -50%)',
-    boxShadow: `
-      0 0 ${imageBounds ? imageBounds.width * 0.02 : 10}px ${color},
-      0 0 ${imageBounds ? imageBounds.width * 0.04 : 20}px ${color},
-      0 0 ${imageBounds ? imageBounds.width * 0.07 : 35}px ${color}80,
-      0 0 ${imageBounds ? imageBounds.width * 0.12 : 60}px ${color}40,
-      0 0 ${imageBounds ? imageBounds.width * 0.18 : 90}px ${color}20
-    `,
-    filter: 'blur(1px)',
-    opacity: 0.9,
-    animation: `pulse ${0.8 + Math.random() * 0.8}s ease-in-out infinite`,  // ← здесь скорость!
-    animationDelay: `${delay}s`,
-  }}
-/>
+                key={`light-${i}`}
+                className={`absolute transition-all duration-1000 ${isFresh ? 'animate-pulse drop-shadow-glow' : ''}`}
+                style={{
+                  left: `${screenX}px`,
+                  top: `${screenY}px`,
+                  width: imageBounds ? `${imageBounds.width * (isFresh ? 0.021 : 0.014)}px` : (isFresh ? '21px' : '14px'),
+                  height: imageBounds ? `${imageBounds.width * (isFresh ? 0.021 : 0.014)}px` : (isFresh ? '21px' : '14px'),
+                  backgroundColor: color,
+                  borderRadius: '50%',
+                  transform: `translate(-50%, -50%) ${isFresh ? 'scale(1.5)' : 'scale(1)'}`,
+                  filter: isFresh ? 'brightness(1.5) blur(1px)' : 'blur(1px)',
+                  boxShadow: `
+                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.03 : 0.02) : (isFresh ? 15 : 10)}px ${color},
+                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.06 : 0.04) : (isFresh ? 30 : 20)}px ${color},
+                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.105 : 0.07) : (isFresh ? 52.5 : 35)}px ${color}80,
+                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.18 : 0.12) : (isFresh ? 90 : 60)}px ${color}40,
+                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.27 : 0.18) : (isFresh ? 135 : 90)}px ${color}20
+                  `,
+                  opacity: isFresh ? 1 : 0.9,
+                  animation: `pulse ${0.8 + Math.random() * 0.8}s ease-in-out infinite`,
+                  animationDelay: `${delay}s`,
+                }}
+              />
             )
           })
-        )}
+        })()}
       </div>
       
       {/* Шарики — точное позиционирование */}
@@ -578,22 +638,25 @@ useEffect(() => {
             const screenX = imageBounds.left + adjustedRelX * imageBounds.width
             const screenY = imageBounds.top + adjustedRelY * imageBounds.height+13
 
+            const isFresh = ball?.createdAt && (Date.now() - ball.createdAt) < 60000
+
             return (
               <div
-                key={`ball-${ball?.id || i}`}
-                className="group absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto hover:animate-wiggle"
+                key={`ball-${i}`}
+                className={`group absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto hover:animate-wiggle transition-all duration-1000 ${isFresh ? 'animate-bounce-slight drop-shadow-glow' : ''}`}
                 style={{
                   left: `${screenX}px`,
                   top: `${screenY}px`,
+                  transform: `translate(-50%, -50%) ${isFresh ? 'scale(1.25)' : 'scale(1)'}`,
                 }}
               >
                 <img
                   src="/malinka-ball.svg"
                   alt="Шарик"
                   style={{
-                    width: imageBounds ? `${imageBounds.width * 0.075}px` : '48px',   // ~23px на 512px ширине ёлки, подгони под вкус
+                    width: imageBounds ? `${imageBounds.width * (isFresh ? 0.09375 : 0.075)}px` : (isFresh ? '60px' : '48px'),
                     height: 'auto',  // сохраняем пропорции SVG
-                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
+                    filter: isFresh ? 'brightness(1.5) drop-shadow(0 4px 8px rgba(0,0,0,0.5))' : 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
                   }}
                 />
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -620,22 +683,25 @@ useEffect(() => {
             const screenX = imageBounds.left + relX * imageBounds.width
             const screenY = imageBounds.top + relY * imageBounds.height
 
+            const isFresh = envelope?.createdAt && (Date.now() - envelope.createdAt) < 60000
+
             return (
               <div
-                key={`envelope-${envelope?.id || i}`}
-                className="group absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto hover:animate-wiggle"
+                key={`envelope-${i}`}
+                className={`group absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto hover:animate-wiggle transition-all duration-1000 ${isFresh ? 'animate-pulse drop-shadow-glow' : ''}`}
                 style={{
                   left: `${screenX}px`,
                   top: `${screenY}px`,
+                  transform: `translate(-50%, -50%) ${isFresh ? 'scale(1.5)' : 'scale(1)'}`,
                 }}
               >
                 <img
                   src="/envelope.png"
                   alt="Открытка"
                   style={{
-                    width: imageBounds ? `${imageBounds.width * 0.05}px` : '48px',
+                    width: imageBounds ? `${imageBounds.width * (isFresh ? 0.075 : 0.05)}px` : (isFresh ? '72px' : '48px'),
                     height: 'auto',
-                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
+                    filter: isFresh ? 'brightness(1.5) drop-shadow(0 4px 8px rgba(0,0,0,0.5))' : 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
                   }}
                 />
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
@@ -655,14 +721,14 @@ useEffect(() => {
       
       {/* Гифки - полноразмерные */}
       {decorations
-        .filter(d => d.type?.toLowerCase() === 'gift' && d.image_url)
-        .map((dec, i) => {
-          const pos = decorationPositions.get(dec.id || i)
+        .filter(d => d.type?.toLowerCase() === 'gift')
+        .map((_, i) => {
+          const pos = decorationPositions.get(i)
           if (!pos) return null
           return (
             <img
-              key={`gift-${dec.id || i}`}
-              src={dec.image_url}
+              key={`gift-${i}`}
+              src=""
               alt="Gift"
               className="gift-gif absolute"
               style={{
@@ -1019,27 +1085,24 @@ useEffect(() => {
               ) : (
                 allActions.map((dec, i) => (
                   <div
-                    key={`log-${dec.id || i}`}
+                    key={`log-${i}`}
                     className="bg-black/40 rounded-lg p-3 text-sm"
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="text-yellow-400 font-bold">
-                          {dec.type === 'light' && `💡 Зажёг ${Math.floor(parseFloat(dec.amount))} огоньков!`}
+                          {dec.type === 'light' && `💡 Зажёг ${Math.floor(typeof dec.amount === 'number' ? dec.amount : parseFloat(dec.amount || '0'))} огоньков!`}
                           {dec.type === 'ball' && '🎈 Шарик'}
                           {(dec.type === 'candle' || dec.type === 'envelope') && '📮 Открытка'}
                           {dec.type === 'gift' && '🎁 Подарок'}
-                          {dec.type === 'star' && parseFloat(dec.amount) === currentBid && `⭐ ${dec.username || dec.from_account} получает право зажечь звезду на Новый год! 🎉`}
+                          {dec.type === 'star' && (typeof dec.amount === 'number' ? dec.amount : parseFloat(dec.amount || '0')) === currentBid && `⭐ ${dec.username || dec.from_account} получает право зажечь звезду на Новый год! 🎉`}
                         </div>
                         <div className="text-white mt-1">
                           От: {dec.from_account}
                         </div>
                         <div className="text-pink-300 text-xs mt-1">
-                          Сумма: {dec.amount}
+                          Сумма: {typeof dec.amount === 'number' ? dec.amount.toFixed(6) : dec.amount} MLNK
                         </div>
-                      </div>
-                      <div className="text-gray-400 text-xs">
-                        {dec.created_at ? new Date(dec.created_at).toLocaleString('ru-RU') : ''}
                       </div>
                     </div>
                   </div>

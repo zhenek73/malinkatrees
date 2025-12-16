@@ -1,15 +1,12 @@
 export type DecorationType = 'light' | 'ball' | 'candle' | 'envelope' | 'gift' | 'star'
 
 export interface Decoration {
-  id?: number
   type: DecorationType
   from_account: string
-  username?: string
-  text?: string
-  image_url?: string
-  amount: string
-  tx_id: string
-  created_at?: string
+  username?: string | null
+  text?: string | null
+  amount: number
+  createdAt?: number  // timestamp в ms (для старых украшений будет undefined)
 }
 
 export interface TopDonor {
