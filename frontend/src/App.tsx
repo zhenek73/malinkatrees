@@ -793,21 +793,23 @@ useEffect(() => {
         })}
       
       {/* Сияющая пятиконечная звезда на макушке */}
-      <div 
-        className="group absolute top-[173px] left-1/2 z-45"
-        style={{
-          transform: 'translateX(calc(-50% - 2px))',
-          opacity: auctionEnded || localLights.length >= 100 ? 1 : 0,
-          transition: 'opacity 1s ease-in-out',
-        }}
-      >
+      {imageBounds && (
         <div 
-          className="relative animate-pulse-slow"
+          className="group absolute left-1/2 z-45"
           style={{
-            width: imageBounds ? `${imageBounds.width * 0.15}px` : '75px',
-            height: imageBounds ? `${imageBounds.width * 0.15}px` : '75px',
+            top: `${imageBounds.top + imageBounds.height * 0.267}px`,
+            transform: 'translateX(calc(-50% - 2px))',
+            opacity: auctionEnded || localLights.length >= 100 ? 1 : 0,
+            transition: 'opacity 1s ease-in-out',
           }}
         >
+          <div 
+            className="relative animate-pulse-slow"
+            style={{
+              width: `${imageBounds.width * 0.15}px`,
+              height: `${imageBounds.width * 0.15}px`,
+            }}
+          >
           <div className="absolute inset-0 bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 rounded-full blur-md animate-glow"></div>
           <div className="absolute inset-0 flex items-center justify-center">
             <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl">
@@ -826,13 +828,14 @@ useEffect(() => {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-45 w-12 h-1 bg-yellow-400 blur-sm"></div>
           </div>
         </div>
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100]">
-          <div className="bg-yellow-400 text-black text-sm font-bold px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
-            {localLights.length >= 100 && !auctionEnded ? 'Поздравляю! Ты зажёг звезду!' : (starBids.length > 0 ? `Звезду зажёг ${starBids[0].username || starBids[0].from_account}! С Новым годом, друзья!` : 'победитель! С Новым годом, друзья!')}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100]">
+            <div className="bg-yellow-400 text-black text-sm font-bold px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
+              {localLights.length >= 100 && !auctionEnded ? 'Поздравляю! Ты зажёг звезду!' : (starBids.length > 0 ? `Звезду зажёг ${starBids[0].username || starBids[0].from_account}! С Новым годом, друзья!` : 'победитель! С Новым годом, друзья!')}
+            </div>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-yellow-400"></div>
           </div>
-          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-yellow-400"></div>
         </div>
-      </div>
+      )}
 
 
       {/* Кнопка "Украсить ёлку" внизу (поднята выше) */}
