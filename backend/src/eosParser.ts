@@ -74,10 +74,10 @@ async function fetchTransfers(limit: number = 100): Promise<EOSTransfer[]> {
     console.log(`✅ [EOS] Found ${transfers.length} transfers from ${SUPPORTED_CONTRACTS.join(' and ')}`)
     return transfers
   } catch (error: any) {
-    console.error('❌ [EOS] Error fetching EOS transfers:', error.message)
+    console.error('❌ [EOS] Error fetching EOS transfers: ' + error.message)
     if (error.response) {
-      console.error('   Response status:', error.response.status)
-      console.error('   Response data:', JSON.stringify(error.response.data).substring(0, 200))
+      console.error('   Response status: ' + String(error.response.status))
+      console.error('   Response data: ' + JSON.stringify(error.response.data).substring(0, 200))
     }
     return []
   }
@@ -178,9 +178,9 @@ async function processTransfer(transfer: EOSTransfer): Promise<void> {
     const decoration: Decoration = {
       type: 'star',
       from_account: transfer.from,
-      username: parsed.username || transfer.from || null,
-      text: null,
-      amount: amount
+      username: parsed.username || transfer.from || undefined,
+      text: undefined,
+      amount: amount.toFixed(6)
     }
 
     const inserted = await insertDecoration(decoration, transfer.trx_id)
@@ -200,9 +200,9 @@ async function processTransfer(transfer: EOSTransfer): Promise<void> {
     const decoration: Decoration = {
       type: parsed.type.toLowerCase() as DecorationType,
       from_account: transfer.from,
-      username: parsed.username || null,
-      text: parsed.type === 'candle' ? (parsed.text || null) : null,
-      amount: amount
+      username: parsed.username || undefined,
+      text: parsed.type === 'candle' ? (parsed.text || undefined) : undefined,
+      amount: amount.toFixed(6)
     }
 
     const inserted = await insertDecoration(decoration, transfer.trx_id)
@@ -258,7 +258,7 @@ async function pollTransactions(): Promise<void> {
     }
     console.log(`✅ [EOS] Processed ${processed} transfers`)
   } catch (error: any) {
-    console.error('❌ [EOS] Error in pollTransactions:', error.message)
+    console.error('❌ [EOS] Error in pollTransactions: ' + error.message)
   }
 }
 
