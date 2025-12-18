@@ -646,12 +646,12 @@ useEffect(() => {
                   boxShadow: `
                     0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.03 : 0.02) : (isFresh ? 15 : 10)}px ${color},
                     0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.06 : 0.04) : (isFresh ? 30 : 20)}px ${color},
-                  /*
                     0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.105 : 0.07) : (isFresh ? 52.5 : 35)}px ${color}80,
+                    /*
+                  
                     0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.18 : 0.12) : (isFresh ? 90 : 60)}px ${color}40,
                     0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.27 : 0.18) : (isFresh ? 135 : 90)}px ${color}20
-                  */
-                 `,
+                  */`,
                   opacity: isFresh ? 1 : 0.9,
                   animation: `pulse ${0.8 + Math.random() * 0.8}s ease-in-out infinite`,
                   animationDelay: `${delay}s`,
