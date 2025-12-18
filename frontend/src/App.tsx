@@ -794,7 +794,7 @@ useEffect(() => {
       
       {/* Сияющая пятиконечная звезда на макушке */}
       <div 
-        className="group absolute top-[238px] left-1/2 z-25"
+        className="group absolute top-[173px] left-1/2 z-45"
         style={{
           transform: 'translateX(calc(-50% - 2px))',
           opacity: auctionEnded || localLights.length >= 100 ? 1 : 0,
