@@ -180,7 +180,8 @@ async function processTransfer(transfer: EOSTransfer): Promise<void> {
       from_account: transfer.from,
       username: parsed.username || transfer.from || undefined,
       text: undefined,
-      amount: amount.toFixed(6)
+      amount: amount.toFixed(6),
+      tx_id: transfer.trx_id
     }
 
     const inserted = await insertDecoration(decoration, transfer.trx_id)
@@ -202,7 +203,8 @@ async function processTransfer(transfer: EOSTransfer): Promise<void> {
       from_account: transfer.from,
       username: parsed.username || undefined,
       text: parsed.type === 'candle' ? (parsed.text || undefined) : undefined,
-      amount: amount.toFixed(6)
+      amount: amount.toFixed(6),
+      tx_id: transfer.trx_id
     }
 
     const inserted = await insertDecoration(decoration, transfer.trx_id)
