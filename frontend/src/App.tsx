@@ -1244,7 +1244,7 @@ useEffect(() => {
             Огоньков: {stats.lights} • Шариков: {stats.balls} • Открыток: {stats.envelopes} 
           </p>
           <p className="text-pink-200 text-xs mt-1">
-            Всего: {stats.total} {' '}
+            Всего: {stats.lights+stats.balls+stats.envelopes} {' '}
             {(() => {
               const n = stats.total
               if (n % 10 === 1 && n % 100 !== 11) return 'украшение'
