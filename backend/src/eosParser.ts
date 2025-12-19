@@ -3,6 +3,10 @@ import { config } from './config.js'
 import { EOSTransfer, Decoration, DecorationType } from './types.js'
 import { insertDecoration, initTxCache, checkExistingTxIds } from './database.js'
 
+// ВРЕМЕННЫЙ ФЛАГ ДЛЯ ПОЛНОГО РЕПРОЦЕССИНГА
+// После одного успешного запуска поставь false и перезапусти бекенд
+export const FORCE_REPROCESS_ALL = false
+
 let lastProcessedBlock = 0
 let isPolling = false
 
@@ -156,12 +160,11 @@ function parseTransfer(transfer: EOSTransfer): { type: DecorationType | null; co
 async function processTransfer(transfer: EOSTransfer): Promise<void> {
   console.log(`🔄 [EOS] Processing transfer: ${transfer.trx_id.substring(0, 8)}... from ${transfer.from}, amount: ${transfer.quantity}, memo: "${transfer.memo}"`)
   
-  // === ФИЛЬТР ТЕСТОВЫХ ПЕРЕВОДОВ ОТ CRYPTOZHENEK ===
-  if ((transfer.from === 'cryptozhenek') || (transfer.from === 'bot1pr.pcash')) {
-    console.log(`[EOS] Skipping test transfer from cryptozhenek (tx: ${transfer.trx_id.substring(0, 8)}...)`)
-    return  // полностью прекращаем обработку этой транзакции
+  // Пропускаем тестовые/ботовые переводы — они НЕ должны попадать на ёлку
+  if (transfer.from === 'cryptozhenek' || transfer.from === 'bot1pr.pcash') {
+    console.log(`⏭️ [EOS] Skipping test/bot transfer from ${transfer.from} (amount: ${transfer.quantity}, tx: ${transfer.trx_id.substring(0, 8)}...)`)
+    return
   }
-  // === КОНЕЦ ФИЛЬТРА ===
   
   const parsed = parseTransfer(transfer)
 
@@ -184,7 +187,7 @@ async function processTransfer(transfer: EOSTransfer): Promise<void> {
       tx_id: transfer.trx_id
     }
 
-    const inserted = await insertDecoration(decoration)
+    const inserted = await insertDecoration(decoration, FORCE_REPROCESS_ALL)
     
     if (inserted) {
       console.log(`⭐ [EOS] Created star decoration from transfer`)
@@ -206,7 +209,7 @@ async function processTransfer(transfer: EOSTransfer): Promise<void> {
       tx_id: transfer.trx_id
     }
 
-    const inserted = await insertDecoration(decoration)
+    const inserted = await insertDecoration(decoration, FORCE_REPROCESS_ALL)
     
     if (inserted) {
       // Decoration inserted, Realtime will notify clients via postgres_changes
@@ -251,19 +254,32 @@ async function pollTransactions(): Promise<void> {
       return
     }
 
-    console.log(`📥 [EOS] Found ${transfers.length} transfer(s), filtering duplicates...`)
-    // ✅ Batch-проверка: получаем все tx_id из текущего batch
-    const txIds = transfers.map(t => t.trx_id)
-    const existingTxIds = await checkExistingTxIds(txIds)
+    // ✅ ВРЕМЕННО: если FORCE_REPROCESS_ALL = true, пропускаем проверку дубликатов
+    let existingTxIds: Set<string>
+    
+    if (FORCE_REPROCESS_ALL) {
+      console.log('🔥 [EOS] FORCE_REPROCESS_ALL = true — игнорируем дедупликацию, обрабатываем ВСЕ транзакции как новые')
+      existingTxIds = new Set<string>()  // пустой сет → всё считается новым
+    } else {
+      console.log(`📥 [EOS] Found ${transfers.length} transfer(s), filtering duplicates...`)
+      // ✅ Batch-проверка: получаем все tx_id из текущего batch
+      const txIds = transfers.map(t => t.trx_id)
+      existingTxIds = await checkExistingTxIds(txIds)
+    }
+    
     // ✅ Фильтруем только новые транзакции
     const newTransfers = transfers.filter(t => !existingTxIds.has(t.trx_id))
     
-    if (newTransfers.length === 0) {
+    if (newTransfers.length === 0 && !FORCE_REPROCESS_ALL) {
       console.log(`⏭️  [EOS] All transfers already processed (${transfers.length} duplicates)`)
       return
     }
 
-    console.log(`📥 [EOS] Processing ${newTransfers.length} new transfers (filtered ${transfers.length - newTransfers.length} duplicates)`)
+    if (FORCE_REPROCESS_ALL) {
+      console.log(`🔄 [EOS] Processing ALL ${newTransfers.length} transfers (deduplication disabled)`)
+    } else {
+      console.log(`📥 [EOS] Processing ${newTransfers.length} new transfers (filtered ${transfers.length - newTransfers.length} duplicates)`)
+    }
     // Обрабатываем в обратном порядке (старые сначала)
     let processed = 0
     for (const transfer of newTransfers.reverse()) {

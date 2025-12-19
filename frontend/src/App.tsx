@@ -1172,7 +1172,7 @@ useEffect(() => {
                           {dec.type === 'gift' && '🎁 Подарок'}
                           {dec.type === 'star' && (
                             <>
-                              ⭐ {dec.username || dec.from_account} получает право зажечь звезду на Новый год! 🎉
+                              ⭐ {dec.username || dec.from_account} делает ставку на право зажечь звезду на Новый год! 🎉
                               {(typeof dec.amount === 'number' ? dec.amount : parseFloat(dec.amount || '0')) === currentBid && ' (текущий лидер!)'}
                             </>
                           )}
@@ -1243,7 +1243,15 @@ useEffect(() => {
           <p className="text-pink-300 text-sm">
             Огоньков: {stats.lights} • Шариков: {stats.balls} • Открыток: {stats.envelopes} 
           </p>
-          <p className="text-pink-200 text-xs mt-1">Всего: {stats.lights+stats.balls+stats.envelopes+stats.gifts} украшений</p>
+          <p className="text-pink-200 text-xs mt-1">
+            Всего: {stats.total} {' '}
+            {(() => {
+              const n = stats.total
+              if (n % 10 === 1 && n % 100 !== 11) return 'украшение'
+              if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'украшения'
+              return 'украшений'
+            })()}
+          </p>
         </div>
       )}
 

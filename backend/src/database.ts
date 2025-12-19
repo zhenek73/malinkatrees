@@ -36,25 +36,30 @@ export async function initTxCache(): Promise<void> {
   }
 }
 
-export async function insertDecoration(decoration: Decoration): Promise<Decoration | null> {
+export async function insertDecoration(decoration: Decoration, skipDeduplication: boolean = false): Promise<Decoration | null> {
   try {
-    // ✅ Сначала проверяем in-memory кеш (мгновенно, без запроса к Supabase)
-    if (processedTxCache.has(decoration.tx_id)) {
-      console.log(`⚠️  [Cache] Transaction ${decoration.tx_id.substring(0, 8)}... already in cache, skipping`)
-      return null
-    }
+    // ✅ ВРЕМЕННО: если skipDeduplication = true, пропускаем проверку дубликатов
+    if (!skipDeduplication) {
+      // ✅ Сначала проверяем in-memory кеш (мгновенно, без запроса к Supabase)
+      if (processedTxCache.has(decoration.tx_id)) {
+        console.log(`⚠️  [Cache] Transaction ${decoration.tx_id.substring(0, 8)}... already in cache, skipping`)
+        return null
+      }
 
-    // ✅ Если нет в кеше, проверяем в базе данных (редкий случай)
-    const { data: existing } = await supabase
-      .from('decorations')
-      .select('id')
-      .eq('tx_id', decoration.tx_id)
-      .single()
+      // ✅ Если нет в кеше, проверяем в базе данных (редкий случай)
+      const { data: existing } = await supabase
+        .from('decorations')
+        .select('id')
+        .eq('tx_id', decoration.tx_id)
+        .single()
 
-    if (existing) {
-      console.log(`⚠️  [DB] Transaction ${decoration.tx_id.substring(0, 8)}... found in DB, adding to cache`)
-      processedTxCache.add(decoration.tx_id)
-      return null
+      if (existing) {
+        console.log(`⚠️  [DB] Transaction ${decoration.tx_id.substring(0, 8)}... found in DB, adding to cache`)
+        processedTxCache.add(decoration.tx_id)
+        return null
+      }
+    } else {
+      console.log(`🔄 [DB] FORCE_REPROCESS: skipping deduplication for ${decoration.tx_id.substring(0, 8)}...`)
     }
 
     // Принудительно сохраняем type в нижнем регистре
