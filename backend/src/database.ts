@@ -70,7 +70,13 @@ export async function insertDecoration(decoration: Decoration, skipDeduplication
 
     const { data, error } = await supabase
       .from('decorations')
-      .insert([decorationToInsert])
+      .upsert(
+        decorationToInsert,
+        {
+          onConflict: 'tx_id',
+          ignoreDuplicates: true
+        }
+      )
       .select()
       .single()
 
