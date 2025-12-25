@@ -89,6 +89,20 @@ export default function App() {
   const [localEnvelopes, setLocalEnvelopes] = useState<number[]>([]) // индексы локальных открыток
   const [showBurstCounter, setShowBurstCounter] = useState(false)  // видимость счётчика снежинок
 
+  // Музыкальный плеер PayCash
+  const PAYCASH_SONGS = [
+    '/Paycash_rave.mp3',
+    '/Paycash_song.mp3',
+    '/paycash3.mp3',
+    '/pcsongs1.mp3',
+    '/pcsongs2.mp3',
+    '/pcsongs3.mp3',
+    '/pcsongs4.mp3'
+  ]
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
   // Обработка лопания снежинки
   const handleBurst = () => {
     const newCount = burstCount + 1
@@ -246,6 +260,93 @@ export default function App() {
       setLoading(false)
     }
   }
+
+  // Функции управления музыкальным плеером
+  const loadTrack = (index: number) => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    audioRef.current = new Audio(PAYCASH_SONGS[index])
+  }
+
+  // Обработка окончания трека - переход к следующему
+  useEffect(() => {
+    if (!audioRef.current) return
+    
+    const handleEnd = () => {
+      const nextIndex = (currentTrackIndex + 1) % PAYCASH_SONGS.length
+      setCurrentTrackIndex(nextIndex)
+    }
+    
+    audioRef.current.addEventListener('ended', handleEnd)
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.removeEventListener('ended', handleEnd)
+      }
+    }
+  }, [currentTrackIndex])
+
+  // Загрузка трека при изменении индекса
+  useEffect(() => {
+    const wasPlaying = isPlaying && audioRef.current
+    loadTrack(currentTrackIndex)
+    if (wasPlaying && audioRef.current) {
+      audioRef.current.play().catch((err) => {
+        console.log('Ошибка воспроизведения:', err)
+        setIsPlaying(false)
+      })
+    }
+  }, [currentTrackIndex])
+
+  const togglePlay = () => {
+    if (!audioRef.current) {
+      loadTrack(currentTrackIndex)
+    }
+    
+    if (isPlaying) {
+      audioRef.current?.pause()
+      setIsPlaying(false)
+    } else {
+      audioRef.current?.play().catch((err) => {
+        console.log('Ошибка воспроизведения:', err)
+        setIsPlaying(false)
+      })
+      setIsPlaying(true)
+    }
+  }
+
+  const playNext = () => {
+    const wasPlaying = isPlaying
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    const nextIndex = (currentTrackIndex + 1) % PAYCASH_SONGS.length
+    setCurrentTrackIndex(nextIndex)
+    loadTrack(nextIndex)
+    if (wasPlaying) {
+      audioRef.current?.play().catch((err) => {
+        console.log('Ошибка воспроизведения:', err)
+        setIsPlaying(false)
+      })
+    }
+  }
+
+  const playPrev = () => {
+    const wasPlaying = isPlaying
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    const prevIndex = (currentTrackIndex - 1 + PAYCASH_SONGS.length) % PAYCASH_SONGS.length
+    setCurrentTrackIndex(prevIndex)
+    loadTrack(prevIndex)
+    if (wasPlaying) {
+      audioRef.current?.play().catch((err) => {
+        console.log('Ошибка воспроизведения:', err)
+        setIsPlaying(false)
+      })
+    }
+  }
+
 
   // Подсчёт статистики
   const stats = useMemo(() => {
@@ -1239,7 +1340,7 @@ useEffect(() => {
 
       {/* Статистика вверху */}
       {!loading && (
-        <div className="absolute top-4 left-4 right-4 z-30 bg-black/60 backdrop-blur-sm rounded-lg p-3 text-center">
+        <div className="absolute top-4 left-4 z-30 bg-black/60 backdrop-blur-sm rounded-lg p-3 text-center" style={{ maxWidth: 'calc(50% - 24px)' }}>
           <p className="text-pink-300 text-sm">
             Огоньков: {stats.lights} • Шариков: {stats.balls} • Открыток: {stats.envelopes} 
           </p>
@@ -1252,6 +1353,41 @@ useEffect(() => {
               return 'украшений'
             })()}
           </p>
+        </div>
+      )}
+
+      {/* Радио PayCash */}
+      {!loading && (
+        <div className="absolute top-4 right-4 z-30 bg-black/80 backdrop-blur-sm rounded-lg p-3 border border-yellow-500/30">
+          <div className="text-yellow-400 font-bold text-sm mb-2 text-center">📻 Радио PayCash</div>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={playPrev}
+              className="bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 rounded-full p-2 transition-colors"
+              disabled={!audioRef.current}
+              title="Предыдущий трек"
+            >
+              ⏮️
+            </button>
+            <button
+              onClick={togglePlay}
+              className="bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-400 rounded-full p-2 transition-colors flex items-center justify-center"
+              title={isPlaying ? 'Пауза' : 'Воспроизведение'}
+            >
+              {isPlaying ? '⏸️' : '▶️'}
+            </button>
+            <button
+              onClick={playNext}
+              className="bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 rounded-full p-2 transition-colors"
+              disabled={!audioRef.current}
+              title="Следующий трек"
+            >
+              ⏭️
+            </button>
+          </div>
+          <div className="text-yellow-300/70 text-xs mt-2 text-center">
+            {currentTrackIndex + 1} / {PAYCASH_SONGS.length}
+          </div>
         </div>
       )}
 

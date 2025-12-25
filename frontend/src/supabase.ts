@@ -26,3 +26,4 @@ export async function getSupabaseClient(): Promise<SupabaseClient | null> {
   return null
 }
 
+
