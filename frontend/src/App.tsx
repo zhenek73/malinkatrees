@@ -88,6 +88,8 @@ export default function App() {
   const [localBalls, setLocalBalls] = useState<number[]>([])       // индексы локальных шариков
   const [localEnvelopes, setLocalEnvelopes] = useState<number[]>([]) // индексы локальных открыток
   const [showBurstCounter, setShowBurstCounter] = useState(false)  // видимость счётчика снежинок
+  const [showVideoCard, setShowVideoCard] = useState(false)  // показ видео открытки
+  const videoRef = useRef<HTMLVideoElement | null>(null)
 
   // Музыкальный плеер PayCash
   const PAYCASH_SONGS = [
@@ -962,6 +964,7 @@ useEffect(() => {
 
 
       {/* Кнопка "Украсить ёлку" внизу (поднята выше) */}
+      {!showVideoCard && (
       <div className="absolute left-1/2 -translate-x-1/2 z-40 w-full px-4" style={{ bottom: 'max(16px, env(safe-area-inset-bottom, var(--tg-content-safe-area-inset-bottom, 20px)))' }}>
         {!showDonatePanel ? (
           <button
@@ -1026,6 +1029,7 @@ useEffect(() => {
           </div>
         )}
       </div>
+      )}
 
       {/* Статус ожидания оплаты с таймером */}
       {waitingForPayment && (
@@ -1339,7 +1343,7 @@ useEffect(() => {
       )}
 
       {/* Статистика вверху */}
-      {!loading && (
+      {!loading && !showVideoCard && (
         <div className="absolute top-4 left-4 z-30 bg-black/60 backdrop-blur-sm rounded-lg p-3 text-center" style={{ maxWidth: 'calc(50% - 24px)' }}>
           <p className="text-pink-300 text-sm">
             Огоньков: {stats.lights} • Шариков: {stats.balls} • Открыток: {stats.envelopes} 
@@ -1357,7 +1361,7 @@ useEffect(() => {
       )}
 
       {/* Радио PayCash */}
-      {!loading && (
+      {!loading && !showVideoCard && (
         <div className="absolute top-4 right-4 z-30 bg-black/80 backdrop-blur-sm rounded-lg p-3 border border-yellow-500/30">
           <div className="text-yellow-400 font-bold text-sm mb-2 text-center">📻 Радио PayCash</div>
           <div className="flex items-center justify-center gap-2">
@@ -1388,6 +1392,45 @@ useEffect(() => {
           <div className="text-yellow-300/70 text-xs mt-2 text-center">
             {currentTrackIndex + 1} / {PAYCASH_SONGS.length}
           </div>
+        </div>
+      )}
+
+      {/* Кнопка "Открытка Paycash" под плеером */}
+      {!loading && !showVideoCard && (
+        <div className="absolute top-32 right-4 z-30">
+          <button
+            onClick={() => {
+              setShowVideoCard(true)
+            }}
+            className="bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-3 px-4 rounded-lg shadow-xl hover:scale-105 transition flex items-center gap-2"
+          >
+            <img src="/notext.png" alt="Paycash" className="w-6 h-6" />
+            <span>Открытка Paycash</span>
+          </button>
+        </div>
+      )}
+
+      {/* Видео открытка */}
+      {showVideoCard && (
+        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+          <video
+            ref={videoRef}
+            src="/1227 (1).mp4"
+            className="w-full h-full object-contain"
+            onEnded={() => {
+              setShowVideoCard(false)
+            }}
+            onLoadedData={() => {
+              // Автоматически запускаем видео когда оно загружено
+              if (videoRef.current) {
+                videoRef.current.play().catch((err) => {
+                  console.log('Ошибка воспроизведения видео:', err)
+                })
+              }
+            }}
+            playsInline
+            autoPlay
+          />
         </div>
       )}
 
