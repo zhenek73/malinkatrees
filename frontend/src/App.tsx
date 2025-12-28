@@ -89,7 +89,10 @@ export default function App() {
   const [localEnvelopes, setLocalEnvelopes] = useState<number[]>([]) // индексы локальных открыток
   const [showBurstCounter, setShowBurstCounter] = useState(false)  // видимость счётчика снежинок
   const [showVideoCard, setShowVideoCard] = useState(false)  // показ видео открытки
+  const [isRadioExpanded, setIsRadioExpanded] = useState(false)  // расширение кнопки радио
+  const [showRadioControls, setShowRadioControls] = useState(false)  // показ элементов управления радио
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const radioTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Музыкальный плеер PayCash
   const PAYCASH_SONGS = [
@@ -308,12 +311,49 @@ export default function App() {
     if (isPlaying) {
       audioRef.current?.pause()
       setIsPlaying(false)
+      // При паузе полностью сворачиваем кнопку радио
+      setIsRadioExpanded(false)
+      setShowRadioControls(false)
+      if (radioTimeoutRef.current) {
+        clearTimeout(radioTimeoutRef.current)
+        radioTimeoutRef.current = null
+      }
     } else {
       audioRef.current?.play().catch((err) => {
         console.log('Ошибка воспроизведения:', err)
         setIsPlaying(false)
       })
       setIsPlaying(true)
+    }
+  }
+
+  // Таймер автоскрытия контролов радио через 10 секунд
+  useEffect(() => {
+    if (showRadioControls && isRadioExpanded) {
+      if (radioTimeoutRef.current) {
+        clearTimeout(radioTimeoutRef.current)
+      }
+      radioTimeoutRef.current = setTimeout(() => {
+        setShowRadioControls(false)
+        radioTimeoutRef.current = null
+      }, 10000)
+      return () => {
+        if (radioTimeoutRef.current) {
+          clearTimeout(radioTimeoutRef.current)
+          radioTimeoutRef.current = null
+        }
+      }
+    }
+  }, [showRadioControls, isRadioExpanded])
+
+  // Сброс таймера при взаимодействии с контролами
+  const resetRadioTimeout = () => {
+    if (radioTimeoutRef.current) {
+      clearTimeout(radioTimeoutRef.current)
+      radioTimeoutRef.current = null
+    }
+    if (isRadioExpanded) {
+      setShowRadioControls(true)
     }
   }
 
@@ -1342,9 +1382,9 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Статистика вверху */}
+      {/* Статистика вверху на всю ширину */}
       {!loading && !showVideoCard && (
-        <div className="absolute top-4 left-4 z-30 bg-black/60 backdrop-blur-sm rounded-lg p-3 text-center" style={{ maxWidth: 'calc(50% - 24px)' }}>
+        <div className="absolute top-4 left-4 right-4 z-30 bg-black/60 backdrop-blur-sm rounded-lg p-3 text-center">
           <p className="text-pink-300 text-sm">
             Огоньков: {stats.lights} • Шариков: {stats.balls} • Открыток: {stats.envelopes} 
           </p>
@@ -1360,52 +1400,106 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Радио PayCash */}
+      {/* Три кнопки под статистикой */}
       {!loading && !showVideoCard && (
-        <div className="absolute top-4 right-4 z-30 bg-black/80 backdrop-blur-sm rounded-lg p-3 border border-yellow-500/30">
-          <div className="text-yellow-400 font-bold text-sm mb-2 text-center">📻 Радио PayCash</div>
-          <div className="flex items-center justify-center gap-2">
+        <div className="absolute top-24 left-4 right-4 z-30 flex gap-1.5">
+          {/* Расширяющаяся кнопка Радио PayCash */}
+          <div className={`flex-[1.5] bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg shadow-lg overflow-hidden transition-all duration-300 ${isRadioExpanded ? 'max-h-28' : 'max-h-8'}`}>
             <button
-              onClick={playPrev}
-              className="bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 rounded-full p-2 transition-colors"
-              disabled={!audioRef.current}
-              title="Предыдущий трек"
+              onClick={() => {
+                if (!isRadioExpanded) {
+                  setIsRadioExpanded(true)
+                  setShowRadioControls(true)
+                } else {
+                  setIsRadioExpanded(false)
+                  setShowRadioControls(false)
+                }
+              }}
+              className="w-full text-white font-semibold py-1.5 px-2 flex items-center justify-center gap-1 text-xs hover:scale-105 transition-transform relative"
             >
-              ⏮️
+              <span className="text-xs">📻</span>
+              <span className="text-xs">Радио</span>
+              {/* Мини-индикатор когда контролы скрыты */}
+              {isRadioExpanded && !showRadioControls && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowRadioControls(true)
+                    resetRadioTimeout()
+                  }}
+                  className="absolute top-0.5 right-0.5 bg-yellow-500/50 hover:bg-yellow-500/70 rounded-full p-0.5 text-[10px] transition-colors"
+                  title={isPlaying ? 'Пауза' : 'Воспроизведение'}
+                >
+                  {isPlaying ? '⏸' : '▶️'}
+                </button>
+              )}
             </button>
-            <button
-              onClick={togglePlay}
-              className="bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-400 rounded-full p-2 transition-colors flex items-center justify-center"
-              title={isPlaying ? 'Пауза' : 'Воспроизведение'}
-            >
-              {isPlaying ? '⏸️' : '▶️'}
-            </button>
-            <button
-              onClick={playNext}
-              className="bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 rounded-full p-2 transition-colors"
-              disabled={!audioRef.current}
-              title="Следующий трек"
-            >
-              ⏭️
-            </button>
+            {/* Встроенный плеер */}
+            <div className={`overflow-hidden transition-all duration-300 ${showRadioControls && isRadioExpanded ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="px-2 pb-2 space-y-1.5">
+                <div className="text-yellow-200 text-[10px] text-center font-medium">
+                  {currentTrackIndex + 1} / {PAYCASH_SONGS.length}
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      playPrev()
+                      resetRadioTimeout()
+                    }}
+                    className="bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-200 rounded-full p-1 transition-colors text-[10px]"
+                    disabled={!audioRef.current}
+                    title="Предыдущий трек"
+                  >
+                    ◄◄
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      togglePlay()
+                    }}
+                    className="bg-yellow-500/40 hover:bg-yellow-500/60 text-yellow-200 rounded-full p-1 transition-colors text-[10px]"
+                    title={isPlaying ? 'Пауза' : 'Воспроизведение'}
+                  >
+                    {isPlaying ? '⏸' : '▶️'}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      playNext()
+                      resetRadioTimeout()
+                    }}
+                    className="bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-200 rounded-full p-1 transition-colors text-[10px]"
+                    disabled={!audioRef.current}
+                    title="Следующий трек"
+                  >
+                    ►►
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="text-yellow-300/70 text-xs mt-2 text-center">
-            {currentTrackIndex + 1} / {PAYCASH_SONGS.length}
-          </div>
-        </div>
-      )}
 
-      {/* Кнопка "Открытка Paycash" под плеером */}
-      {!loading && !showVideoCard && (
-        <div className="absolute top-32 right-4 z-30">
+          {/* Кнопка Открытка PayCash */}
           <button
             onClick={() => {
               setShowVideoCard(true)
             }}
-            className="bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-3 px-4 rounded-lg shadow-xl hover:scale-105 transition flex items-center gap-2"
+            className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-semibold py-1.5 px-2 rounded-lg shadow-lg hover:scale-105 transition flex items-center justify-center gap-1 text-xs"
           >
-            <img src="/notext.png" alt="Paycash" className="w-6 h-6" />
-            <span>Открытка Paycash</span>
+            <img src="/notext.png" alt="Paycash" className="w-4 h-4" />
+            <span className="text-xs">Открытка</span>
+          </button>
+
+          {/* Кнопка Викторина PayCash */}
+          <button
+            onClick={() => {
+              window.open('https://chatquizbot-production.up.railway.app', '_blank')
+            }}
+            className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold py-1.5 px-2 rounded-lg shadow-lg hover:scale-105 transition flex items-center justify-center gap-1 text-xs"
+          >
+            <span className="text-xs">🎯</span>
+            <span className="text-xs">Викторина</span>
           </button>
         </div>
       )}
