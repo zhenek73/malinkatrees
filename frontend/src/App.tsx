@@ -763,7 +763,7 @@ useEffect(() => {
   
   // КРИТИЧНО: максимум видимых огоньков = количество позиций в JSON
   // Если в light-positions.json 83 позиции — будет максимум 83 огонька
-  const MAX_VISIBLE_LIGHTS = lightPositions.length   // ← вот сюда подставишь реальное число, если пришлёшь файл
+  const MAX_VISIBLE_LIGHTS = 660   // ← вот сюда подставишь реальное число, если пришлёшь файл
   // Или временно захардкодь: const MAX_VISIBLE_LIGHTS = 690
 
   const renderCount = Math.min(totalLights, MAX_VISIBLE_LIGHTS)
