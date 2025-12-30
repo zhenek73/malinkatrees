@@ -762,8 +762,9 @@ useEffect(() => {
   const isFullyLit = localLights.length >= 100
   
   // КРИТИЧНО: максимум видимых огоньков = количество позиций в JSON
-  // Если в light-positions.json 83 позиции — будет максимум 83 огонька
-  const MAX_VISIBLE_LIGHTS = 190   // ← вот сюда подставишь реальное число, если пришлёшь файл
+  // VITE_MAX_VISIBLE_LIGHTS в реилвейсах задаем
+  const MAX_VISIBLE_LIGHTS = Number(import.meta.env.VITE_MAX_VISIBLE_LIGHTS ?? 190)
+
   // Или временно захардкодь: const MAX_VISIBLE_LIGHTS = 690
 
   const renderCount = Math.min(totalLights, MAX_VISIBLE_LIGHTS)
