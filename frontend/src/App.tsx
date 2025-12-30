@@ -750,64 +750,67 @@ useEffect(() => {
 
       {/* Огоньки — точное позиционирование через imageBounds */}
       <div className="absolute inset-0 pointer-events-none z-15">
-        {(stats.lights + localLights.length) > 0 && imageBounds && lightPositions.length > 0 && (() => {
-          // Подсчитываем количество свежих огоньков
-          const freshLights = decorations.filter(d => 
-            d.type?.toLowerCase() === 'light' && 
-            d.createdAt && 
-            (Date.now() - d.createdAt) < 60000
-          ).length
-          
-          const totalLights = stats.lights + localLights.length
-          const isFullyLit = localLights.length >= 100
-          
-          return Array.from({ length: totalLights }, (_, i) => {
-            const isLocal = i >= stats.lights
-            const pos = lightPositions[i % lightPositions.length]
-            const color = lightColors[i % lightColors.length] || LIGHT_COLORS[0]
-            const delay = lightDelays[i % lightDelays.length] || 0
-            
-            // Последние N огоньков считаются свежими (где N = количество свежих decorations)
-            const isFresh = !isLocal && i >= stats.lights - freshLights && freshLights > 0
-            const lightSize = isFullyLit ? (isFresh ? 0.025 : 0.018) : (isFresh ? 0.021 : 0.014)
-            const lightBrightness = isFullyLit ? 1.8 : (isFresh ? 1.5 : 1)
+      {(stats.lights + localLights.length) > 0 && imageBounds && lightPositions.length > 0 && (() => {
+  // Подсчитываем количество свежих огоньков
+  const freshLights = decorations.filter(d => 
+    d.type?.toLowerCase() === 'light' && 
+    d.createdAt && 
+    (Date.now() - d.createdAt) < 60000
+  ).length
+  
+  const totalLights = stats.lights + localLights.length
+  const isFullyLit = localLights.length >= 100
+  
+  // КРИТИЧНО: максимум видимых огоньков = количество позиций в JSON
+  // Если в light-positions.json 83 позиции — будет максимум 83 огонька
+  const MAX_VISIBLE_LIGHTS = lightPositions.length   // ← вот сюда подставишь реальное число, если пришлёшь файл
+  // Или временно захардкодь: const MAX_VISIBLE_LIGHTS = 690
 
-            const relX = pos.x / 1024   // оригинал light-positions.json — 512×1024
-            const relY = pos.y / 2048
+  const renderCount = Math.min(totalLights, MAX_VISIBLE_LIGHTS)
 
-            const screenX = imageBounds.left + relX * imageBounds.width
-            const screenY = imageBounds.top + relY * imageBounds.height
+  return Array.from({ length: renderCount }, (_, i) => {
+    const isLocal = i >= stats.lights
+    const pos = lightPositions[i % lightPositions.length]  // цикл по позициям
+    const color = lightColors[i % lightColors.length] || LIGHT_COLORS[0]
+    const delay = lightDelays[i % lightDelays.length] || 0
+    
+    // Последние N огоньков считаются свежими
+    const isFresh = !isLocal && i >= stats.lights - freshLights && freshLights > 0
+    const lightSize = isFullyLit ? (isFresh ? 0.025 : 0.018) : (isFresh ? 0.021 : 0.014)
+    const lightBrightness = isFullyLit ? 1.8 : (isFresh ? 1.5 : 1)
 
-            return (
-              <div
-                key={`light-${i}`}
-                className={`absolute transition-all duration-1000 ${isFresh ? 'animate-pulse drop-shadow-glow' : ''}`}
-                style={{
-                  left: `${screenX}px`,
-                  top: `${screenY}px`,
-                  width: imageBounds ? `${imageBounds.width * lightSize}px` : (isFresh ? '21px' : '14px'),
-                  height: imageBounds ? `${imageBounds.width * lightSize}px` : (isFresh ? '21px' : '14px'),
-                  backgroundColor: color,
-                  borderRadius: '50%',
-                  transform: `translate(-50%, -50%) ${isFresh ? 'scale(1.5)' : 'scale(1)'}`,
-                  filter: `brightness(${lightBrightness}) blur(1px)`,
-                  boxShadow: `
-                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.03 : 0.02) : (isFresh ? 15 : 10)}px ${color},
-                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.06 : 0.04) : (isFresh ? 30 : 20)}px ${color},
-                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.105 : 0.07) : (isFresh ? 52.5 : 35)}px ${color}80,
-                   
-                  
-                    0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.18 : 0.12) : (isFresh ? 90 : 60)}px ${color}40,
-                  /*   0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.27 : 0.18) : (isFresh ? 135 : 90)}px ${color}20
-                  */`,
-                  opacity: isFresh ? 1 : 0.9,
-                  animation: `pulse ${0.8 + Math.random() * 0.8}s ease-in-out infinite`,
-                  animationDelay: `${delay}s`,
-                }}
-              />
-            )
-          })
-        })()}
+    const relX = pos.x / 1024
+    const relY = pos.y / 2048
+
+    const screenX = imageBounds.left + relX * imageBounds.width
+    const screenY = imageBounds.top + relY * imageBounds.height
+
+    return (
+      <div
+        key={`light-${i}`}
+        className={`absolute transition-all duration-1000 ${isFresh ? 'animate-pulse drop-shadow-glow' : ''}`}
+        style={{
+          left: `${screenX}px`,
+          top: `${screenY}px`,
+          width: imageBounds ? `${imageBounds.width * lightSize}px` : (isFresh ? '21px' : '14px'),
+          height: imageBounds ? `${imageBounds.width * lightSize}px` : (isFresh ? '21px' : '14px'),
+          backgroundColor: color,
+          borderRadius: '50%',
+          transform: `translate(-50%, -50%) ${isFresh ? 'scale(1.5)' : 'scale(1)'}`,
+          filter: `brightness(${lightBrightness}) blur(1px)`,
+          boxShadow: `
+            0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.03 : 0.02) : (isFresh ? 15 : 10)}px ${color},
+            0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.06 : 0.04) : (isFresh ? 30 : 20)}px ${color},
+            0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.105 : 0.07) : (isFresh ? 52.5 : 35)}px ${color}80,
+            0 0 ${imageBounds ? imageBounds.width * (isFresh ? 0.18 : 0.12) : (isFresh ? 90 : 60)}px ${color}40`,
+          opacity: isFresh ? 1 : 0.9,
+          animation: `pulse ${0.8 + Math.random() * 0.8}s ease-in-out infinite`,
+          animationDelay: `${delay}s`,
+        }}
+      />
+    )
+  })
+})()}
       </div>
       
      {/* Шарики — точное позиционирование */}
