@@ -36,9 +36,11 @@ app.get('/health', (req, res) => {
 // API: Получить все украшения
 app.get('/api/decorations', async (req, res) => {
   try {
+    console.log('[API] /api/decorations request, query:', req.query)
     const limit = parseInt(req.query.limit as string) || 1000
     console.log(`🔍 Fetching decorations (limit: ${limit})...`)
     const decorations = await getDecorations(limit)
+    console.log('[API] Sending to frontend:', decorations.length, 'decorations')
     console.log(`✅ Returning ${decorations.length} decorations`)
     res.json({ success: true, data: decorations, count: decorations.length })
   } catch (error: any) {

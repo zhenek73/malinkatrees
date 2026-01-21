@@ -32,3 +32,4 @@ export async function getSupabaseClient(): Promise<SupabaseClient | null> {
 
 
 
+

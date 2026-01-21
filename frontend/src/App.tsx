@@ -762,8 +762,8 @@ useEffect(() => {
   const isFullyLit = localLights.length >= 100
   
   // КРИТИЧНО: максимум видимых огоньков = количество позиций в JSON
-  // VITE_MAX_VISIBLE_LIGHTS в реилвейсах задаем
-  const MAX_VISIBLE_LIGHTS = Number(import.meta.env.VITE_MAX_VISIBLE_LIGHTS ?? 190)
+  // Если в light-positions.json 83 позиции — будет максимум 83 огонька
+  const MAX_VISIBLE_LIGHTS = Number(import.meta.env.VITE_MAX_VISIBLE_LIGHTS ?? 690)
 
   // Или временно захардкодь: const MAX_VISIBLE_LIGHTS = 690
 
@@ -1019,10 +1019,10 @@ useEffect(() => {
           <div className="bg-black/80 backdrop-blur-sm rounded-2xl p-4 space-y-2">
             {/* Кнопки доната */}
             <button 
-              disabled
-              className="w-full bg-gray-600 text-gray-400 font-bold py-3 px-6 rounded-full text-lg shadow-xl cursor-not-allowed opacity-50"
+              onClick={() => handleOpenModal('light')}
+              className="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-3 px-6 rounded-full text-lg shadow-xl hover:scale-105 transition"
             >
-              💡 Огонёк (1 MLNK) (закончились)
+              💡 Огонёк (1 MLNK)
             </button>
             
             <button 

@@ -2,7 +2,22 @@ import { createClient } from '@supabase/supabase-js'
 import { config } from './config.js'
 import { Decoration, DecorationType } from './types.js'
 
+// Клиент с anon key (для fallback, если service_role не задан)
 const supabase = createClient(config.supabase.url, config.supabase.anonKey)
+
+// Admin клиент с service_role key (обходит RLS)
+// Используется для всех операций бэкенда
+const supabaseAdmin = config.supabase.serviceRoleKey
+  ? createClient(config.supabase.url, config.supabase.serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : (() => {
+      console.error('❌ [DB] SUPABASE_SERVICE_ROLE_KEY not set! Falling back to anon key (may fail with RLS)')
+      return supabase
+    })()
 
 // In-memory кеш обработанных tx_id для снижения Egress трафика
 // При старте загружается последние 1000 tx_id из БД
@@ -16,7 +31,7 @@ const processedTxCache = new Set<string>()
 export async function initTxCache(): Promise<void> {
   try {
     console.log('🔄 [Cache] Loading recent tx_ids into memory...')
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('decorations')
       .select('tx_id')
       .order('created_at', { ascending: false })
@@ -47,7 +62,7 @@ export async function insertDecoration(decoration: Decoration, skipDeduplication
       }
 
       // ✅ Если нет в кеше, проверяем в базе данных (редкий случай)
-      const { data: existing } = await supabase
+      const { data: existing } = await supabaseAdmin
         .from('decorations')
         .select('id')
         .eq('tx_id', decoration.tx_id)
@@ -68,7 +83,7 @@ export async function insertDecoration(decoration: Decoration, skipDeduplication
       type: decoration.type.toLowerCase()
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('decorations')
       .upsert(
         decorationToInsert,
@@ -110,7 +125,7 @@ export async function checkExistingTxIds(txIds: string[]): Promise<Set<string>> 
     if (txIds.length === 0) return new Set()
     console.log(`🔍 [Batch] Checking ${txIds.length} tx_ids in database...`)
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('decorations')
       .select('tx_id')
       .in('tx_id', txIds)
@@ -135,11 +150,15 @@ export async function checkExistingTxIds(txIds: string[]): Promise<Set<string>> 
 
 export async function getDecorations(limit: number = 1000): Promise<Decoration[]> {
   try {
+    // Проверка, какой клиент используется
+    console.log('[DB] Using client:', supabaseAdmin === supabase ? 'anon key' : 'service_role key')
+    
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+    console.log('[DB] getDecorations called with limit:', limit)
     console.log(`📊 [DB] Fetching decorations (limit: ${limit}, since: ${thirtyDaysAgo.toISOString()})`)
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('decorations')
       .select('*')
       .gte('created_at', thirtyDaysAgo.toISOString())
@@ -150,6 +169,16 @@ export async function getDecorations(limit: number = 1000): Promise<Decoration[]
       console.error('❌ [DB] Error fetching decorations: ' + JSON.stringify(error))
       return []
     }
+    
+    // Подробное логирование результата
+    console.log('[DB] Supabase returned rows:', data?.length || 0)
+    if (data && data.length > 0) {
+      console.log('[DB] First row date:', data[0].created_at)
+      console.log('[DB] Last row date:', data[data.length - 1].created_at)
+    } else {
+      console.log('[DB] No data returned from Supabase')
+    }
+    
     console.log(`✅ [DB] Fetched ${data?.length || 0} decorations`)
     return data || []
   } catch (error) {
@@ -161,7 +190,7 @@ export async function getDecorations(limit: number = 1000): Promise<Decoration[]
 export async function getTopDonors(limit: number = 10): Promise<Array<{ from_account: string; total_amount: number; count: number }>> {
   try {
     console.log(`📊 [DB] Fetching top donors (limit: ${limit})...`)
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('decorations')
       .select('from_account, amount')
       .order('created_at', { ascending: false })
@@ -209,7 +238,7 @@ export async function getTopDonors(limit: number = 10): Promise<Array<{ from_acc
 
 export async function getLastProcessedTxId(): Promise<string | null> {
   try {
-    const { data } = await supabase.from('parser_state').select('last_tx_id').eq('id', 1).single()
+    const { data } = await supabaseAdmin.from('parser_state').select('last_tx_id').eq('id', 1).single()
     return data?.last_tx_id || null
   } catch (error) {
     console.error('❌ [DB] Error getting last processed tx_id: ' + String(error))
@@ -219,13 +248,14 @@ export async function getLastProcessedTxId(): Promise<string | null> {
 
 export async function setLastProcessedTxId(txId: string): Promise<void> {
   try {
-    await supabase.from('parser_state').upsert({ id: 1, last_tx_id: txId })
+    await supabaseAdmin.from('parser_state').upsert({ id: 1, last_tx_id: txId })
     console.log(`✅ [DB] Updated last processed tx_id: ${txId.substring(0, 8)}...`)
   } catch (error) {
     console.error('❌ [DB] Error setting last processed tx_id: ' + String(error))
   }
 }
 
-export { supabase }
+// Экспортируем admin клиент для использования в других модулях (если нужно)
+export { supabaseAdmin }
 
 
