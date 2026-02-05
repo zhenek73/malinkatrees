@@ -153,15 +153,15 @@ export async function getDecorations(limit: number = 1000): Promise<Decoration[]
     // Проверка, какой клиент используется
     console.log('[DB] Using client:', supabaseAdmin === supabase ? 'anon key' : 'service_role key')
     
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    //const thirtyDaysAgo = new Date()
+    //thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
     console.log('[DB] getDecorations called with limit:', limit)
-    console.log(`📊 [DB] Fetching decorations (limit: ${limit}, since: ${thirtyDaysAgo.toISOString()})`)
+    //console.log(`📊 [DB] Fetching decorations (limit: ${limit}, since: ${thirtyDaysAgo.toISOString()})`)
     const { data, error } = await supabaseAdmin
       .from('decorations')
       .select('*')
-      .gte('created_at', thirtyDaysAgo.toISOString())
+      //.gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(limit)
 

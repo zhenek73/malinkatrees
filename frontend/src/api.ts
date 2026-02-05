@@ -91,4 +91,3 @@ export async function getSupabaseClient() {
   
   return supabaseClient
 }
-
