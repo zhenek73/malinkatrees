@@ -1,3 +1,4 @@
+/// <reference types="react" />
 import React, { useEffect, useState, useMemo, useRef, Suspense } from 'react'
 import { Sparkles, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
