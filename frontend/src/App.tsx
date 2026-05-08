@@ -1497,7 +1497,7 @@ useEffect(() => {
           {/* Кнопка Викторина PayCash */}
           <button
             onClick={() => {
-              window.open('https://chatquizbot-production.up.railway.app', '_blank')
+              window.open('https://chatquizbot.vercel.app', '_blank', 'noopener,noreferrer')
             }}
             className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold py-1.5 px-2 rounded-lg shadow-lg hover:scale-105 transition flex items-center justify-center gap-1 text-xs"
           >
