@@ -116,7 +116,7 @@ export default function App() {
     setShowBurstCounter(true) // Показываем счётчик при лопании
     
     // Каждая лопнувшая снежинка → зажигает новый огонёк (следующий свободный)
-    setLocalLights(prev => {
+    setLocalLights((prev: number[]) => {
       const nextIndex = prev.length
       if (nextIndex < lightPositions.length) return [...prev, nextIndex]
       return prev
@@ -124,7 +124,7 @@ export default function App() {
     
     // Каждые 5 лопнувших снежинок → +1 локальный шарик
     if (newCount % 5 === 0) {
-      setLocalBalls(prev => {
+      setLocalBalls((prev: number[]) => {
         const nextIndex = prev.length
         if (nextIndex < ballPositions.length) return [...prev, nextIndex]
         return prev
@@ -133,7 +133,7 @@ export default function App() {
     
     // Каждые 20 лопнувших снежинок → +1 локальная открытка
     if (newCount % 20 === 0) {
-      setLocalEnvelopes(prev => {
+      setLocalEnvelopes((prev: number[]) => {
         const nextIndex = prev.length
         if (nextIndex < envelopePositions.length) return [...prev, nextIndex]
         return prev
@@ -170,7 +170,7 @@ export default function App() {
     if (waitingForPayment) {
       setCountdown(6)
       const countdownInterval = setInterval(() => {
-        setCountdown((prev) => {
+        setCountdown((prev: number) => {
           if (prev <= 1) {
             clearInterval(countdownInterval)
             setWaitingForPayment(false)
@@ -297,7 +297,7 @@ export default function App() {
     const wasPlaying = isPlaying && audioRef.current
     loadTrack(currentTrackIndex)
     if (wasPlaying && audioRef.current) {
-      audioRef.current.play().catch((err) => {
+      audioRef.current.play().catch((err: unknown) => {
         console.log('Ошибка воспроизведения:', err)
         setIsPlaying(false)
       })
@@ -320,7 +320,7 @@ export default function App() {
         radioTimeoutRef.current = null
       }
     } else {
-      audioRef.current?.play().catch((err) => {
+      audioRef.current?.play().catch((err: unknown) => {
         console.log('Ошибка воспроизведения:', err)
         setIsPlaying(false)
       })
@@ -367,7 +367,7 @@ export default function App() {
     setCurrentTrackIndex(nextIndex)
     loadTrack(nextIndex)
     if (wasPlaying) {
-      audioRef.current?.play().catch((err) => {
+      audioRef.current?.play().catch((err: unknown) => {
         console.log('Ошибка воспроизведения:', err)
         setIsPlaying(false)
       })
@@ -383,7 +383,7 @@ export default function App() {
     setCurrentTrackIndex(prevIndex)
     loadTrack(prevIndex)
     if (wasPlaying) {
-      audioRef.current?.play().catch((err) => {
+      audioRef.current?.play().catch((err: unknown) => {
         console.log('Ошибка воспроизведения:', err)
         setIsPlaying(false)
       })
@@ -1520,7 +1520,7 @@ useEffect(() => {
             onLoadedData={() => {
               // Автоматически запускаем видео когда оно загружено
               if (videoRef.current) {
-                videoRef.current.play().catch((err) => {
+                videoRef.current.play().catch((err: unknown) => {
                   console.log('Ошибка воспроизведения видео:', err)
                 })
               }
