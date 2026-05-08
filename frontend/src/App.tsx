@@ -89,10 +89,9 @@ export default function App() {
   const [localBalls, setLocalBalls] = useState<number[]>([])       // индексы локальных шариков
   const [localEnvelopes, setLocalEnvelopes] = useState<number[]>([]) // индексы локальных открыток
   const [showBurstCounter, setShowBurstCounter] = useState(false)  // видимость счётчика снежинок
-  const [showVideoCard, setShowVideoCard] = useState(false)  // показ видео открытки
+  const [showVideoCard] = useState(false)  // видео-открытка выключена (кнопка удалена)
   const [isRadioExpanded, setIsRadioExpanded] = useState(false)  // расширение кнопки радио
   const [showRadioControls, setShowRadioControls] = useState(false)  // показ элементов управления радио
-  const videoRef = useRef<HTMLVideoElement | null>(null)
   const radioTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Музыкальный плеер PayCash
@@ -1483,17 +1482,6 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Кнопка Открытка PayCash */}
-          <button
-            onClick={() => {
-              setShowVideoCard(true)
-            }}
-            className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-semibold py-1.5 px-2 rounded-lg shadow-lg hover:scale-105 transition flex items-center justify-center gap-1 text-xs"
-          >
-            <img src="/notext.png" alt="Paycash" className="w-4 h-4" />
-            <span className="text-xs">Открытка</span>
-          </button>
-
           {/* Кнопка Викторина PayCash */}
           <button
             onClick={() => {
@@ -1504,30 +1492,6 @@ useEffect(() => {
             <span className="text-xs">🎯</span>
             <span className="text-xs">Викторина</span>
           </button>
-        </div>
-      )}
-
-      {/* Видео открытка */}
-      {showVideoCard && (
-        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-          <video
-            ref={videoRef}
-            src="/1227 (1).mp4"
-            className="w-full h-full object-contain"
-            onEnded={() => {
-              setShowVideoCard(false)
-            }}
-            onLoadedData={() => {
-              // Автоматически запускаем видео когда оно загружено
-              if (videoRef.current) {
-                videoRef.current.play().catch((err: unknown) => {
-                  console.log('Ошибка воспроизведения видео:', err)
-                })
-              }
-            }}
-            playsInline
-            autoPlay
-          />
         </div>
       )}
 
